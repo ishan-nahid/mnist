@@ -30,12 +30,16 @@ def predict_route():
     if image.filename == '':
         return render_template('result.html', prediction="No selected file")
     
+    
     try:
         image_path = save_uploaded_file(image)
-        prediction = predict(image_path)
-        os.remove(image_path)  
-        prediction_html = prediction.replace('\n', '<br>')
-        return render_template('result.html', prediction=prediction_html)
+        
+        verdict_map = predict(image_path)
+
+        os.remove(image_path)
+
+        return render_template('result.html', verdict_map=verdict_map)
+
     except Exception as e:
         app.logger.error(f"Error in predict route: {str(e)}")
         return render_template('result.html', prediction=str(e))

@@ -1,10 +1,9 @@
 from PIL import Image, ImageFilter, ImageEnhance
-from datetime import datetime
 import tensorflow as tf
+import pandas as pd
 import numpy as np
 import logging
 import cv2
-import os
 
 
 def load_model():
@@ -240,6 +239,96 @@ label_map = {
 }
 
 
+def evaluate_expression(expression):
+    def precedence(op):
+        if op in {'+', '-'}:
+            return 1
+        if op in {'*', '/'}:
+            return 2
+        return 0
+
+    def apply_op(a, b, op):
+        if op == '+': return a + b
+        if op == '-': return a - b
+        if op == '*': return a * b
+        if op == '/':
+            if b == 0:
+                raise ValueError("Division by zero error")  # Added check for division by zero
+            return a / b
+
+    def is_opening_bracket(char):
+        return char in '([{'
+
+    def is_closing_bracket(char):
+        return char in ')]}'
+
+    def brackets_match(opening, closing):
+        pairs = {'(': ')', '[': ']', '{': '}'}
+        return pairs[opening] == closing
+
+    def infix_to_postfix(tokens):
+        output = []
+        stack = []
+        for token in tokens:
+            if token.isdigit() or (token[0] == '-' and token[1:].isdigit()):
+                output.append(token)
+            elif is_opening_bracket(token):
+                stack.append(token)
+            elif is_closing_bracket(token):
+                while stack and not is_opening_bracket(stack[-1]):
+                    output.append(stack.pop())
+                if stack and brackets_match(stack[-1], token):
+                    stack.pop()  # Remove opening bracket
+                else:
+                    raise ValueError("Mismatched brackets")  # Changed return to raise
+            else:
+                while stack and not is_opening_bracket(stack[-1]) and precedence(stack[-1]) >= precedence(token):
+                    output.append(stack.pop())
+                stack.append(token)
+        while stack:
+            if is_opening_bracket(stack[-1]):
+                raise ValueError("Mismatched brackets")  # Changed return to raise
+            output.append(stack.pop())
+        return output
+
+    def evaluate_postfix(tokens):
+        stack = []
+        for token in tokens:
+            if token.isdigit() or (token[0] == '-' and token[1:].isdigit()):
+                stack.append(float(token))
+            else:
+                try:
+                    b = stack.pop()
+                    a = stack.pop()
+                except IndexError as e:
+                    raise ValueError(f"Error evaluating postfix expression: stack underflow. Token: {token}, Stack: {stack}") from e
+                
+                if token == '/' and b == 0:
+                    raise ValueError("Division by zero error")
+                stack.append(apply_op(a, b, token))
+        if len(stack) != 1:
+            raise ValueError(f"Error evaluating postfix expression: too many items left on stack. Stack: {stack}")
+        return stack[0]
+
+
+    tokens = []
+    current_token = ''
+    for char in expression:
+        if char.isdigit() or (char == '-' and (not current_token or not current_token[-1].isdigit())):
+            current_token += char
+        else:
+            if current_token:
+                tokens.append(current_token)
+                current_token = ''
+            if char != ' ':
+                tokens.append(char)
+    if current_token:
+        tokens.append(current_token)
+
+    postfix = infix_to_postfix(tokens)
+    return evaluate_postfix(postfix)
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -249,9 +338,9 @@ def predict(image_path):
         processed_image = np.array(processed_image)
         split_images = split_image(processed_image)
 
-        final_result = []  # List to store final results for each line
+        final_result = []  
         
-        print(len(split_images))
+        verdicts = []
         
         for img in split_images:
             annotated_image = annotate_image(img)
@@ -280,6 +369,25 @@ def predict(image_path):
             
             line_result = ''.join(line_predictions)
             
+            def process_string(input_string):
+                equals_position = input_string.find('=')
+                
+                if equals_position != -1:
+                    result = input_string[equals_position+1:]
+                    return result
+                else:
+                    return input_string
+                
+            line = process_string(line_result)
+            
+            try:
+                verdict = evaluate_expression(line)
+            except ValueError as e:
+                print(f"Error evaluating expression '{line}': {e}")
+                verdict = None
+            
+            verdicts.append(verdict)
+            
             final_result.append(line_result)
             
             #cleanup
@@ -293,7 +401,21 @@ def predict(image_path):
         split_images.clear()
         
         
-        return '\n'.join(final_result)
+        verdict_map = {}
+        
+        for f, v in zip(final_result, verdicts):
+            if verdicts[0] != v:
+                verdict_map[f] = "Wrong"
+            else:
+                verdict_map[f] = "Right"
+
+        # # Print or use verdict_map as needed
+        # for key, value in verdict_map.items():
+        #     print(f"Key: {key}, Value: {value}")
+            
+
+        
+        return verdict_map
 
     except Exception as e:
         raise RuntimeError(f"Error predicting image: {str(e)}")

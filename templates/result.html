@@ -3,29 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prediction Result</title>
+    <title>Verdict Map</title>
     <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
+        table {
+            width: 50%;
+            border-collapse: collapse;
+            margin: 20px auto;
         }
-        .result {
-            font-size: 24px;
-            font-weight: bold;
-            text-align: center;
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
         }
     </style>
 </head>
 <body>
-    <pre class="result">
-        {{ prediction | safe}}
-    </pre>
-</body>
-</html>
-
-
-
+    <h2 style="text-align: center;">Verdict Map</h2>
+    <table>
+        <tr>
+            <th>Math</th>
+            <th>Verdict</th>
+        </tr>
+        {% for key, value in verdict_map.items() %}
+        <tr>
+            <td>{{ key }}</td>
+            <td>{{ value }}</td>
+        </tr>
+        {% endfor %}
+     </table>
+ </body>
+ </html>
+ 
