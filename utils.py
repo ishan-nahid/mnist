@@ -1,11 +1,18 @@
 import os
 
 def save_uploaded_file(file):
-    # Create the uploads directory if it doesn't exist
-    uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
-    os.makedirs(uploads_dir, exist_ok=True)
-
+    # Get the directory of the current script
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Create an 'uploads' directory if it doesn't exist
+    upload_dir = os.path.join(base_dir, 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Create a file path
     filename = file.filename
-    filepath = os.path.join(uploads_dir, filename)
-    file.save(filepath)
-    return filepath
+    file_path = os.path.join(upload_dir, filename)
+    
+    # Save the file
+    file.save(file_path)
+    
+    return file_path
